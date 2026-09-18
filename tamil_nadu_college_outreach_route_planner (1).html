@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRIMEATHON'26 - Campus Outreach & Route Navigator</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    #map {
+      height: 100%;
+      min-height: 480px;
+      width: 100%;
+      z-index: 10;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.5);
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .leaflet-popup-content {
+      margin: 0;
+      line-height: 1.4;
+    }
+    .marker-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      position: absolute;
+      transform: rotate(-45deg);
+      left: 50%;
+      top: 50%;
+      margin: -20px 0 0 -16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      border: 2px solid #ffffff;
+    }
+    .marker-pin-inner {
+      transform: rotate(45deg);
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <header class="bg-slate-950 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex items-center justify-between shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-rose-500 flex items-center justify-center text-white font-black shadow-lg">
+        <i data-lucide="shield-check" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">CRIMEATHON'26 Outreach Navigator</h1>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">Tamil Nadu Tour</span>
+        </div>
+        <p class="text-xs text-slate-400 hidden sm:block">Real-time corridor visit planner, multi-stop GPS directions & college tracking</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="add-college-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-sm">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Add College</span>
+      </button>
+      <button id="export-csv-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Export CSV</span>
+      </button>
+      <button id="reset-data-btn" title="Reset Default List" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 border border-slate-700 transition">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <section class="bg-slate-900/90 border-b border-slate-800/80 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="grid grid-cols-4 gap-2 sm:gap-4 w-full md:w-auto text-center md:text-left">
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Targets</div>
+          <div class="text-lg font-bold text-white flex items-center justify-center md:justify-start gap-1">
+            <span id="stat-total">40</span>
+            <span class="text-xs font-normal text-slate-400">campuses</span>
+          </div>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-emerald-900/30">
+          <div class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Visited</div>
+          <div class="text-lg font-bold text-emerald-300" id="stat-visited">0</div>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-amber-900/30">
+          <div class="text-[10px] uppercase font-bold tracking-wider text-amber-400">Scheduled</div>
+          <div class="text-lg font-bold text-amber-300" id="stat-scheduled">0</div>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <div class="text-[10px] uppercase font-bold tracking-wider text-rose-400">Pending</div>
+          <div class="text-lg font-bold text-rose-300" id="stat-pending">40</div>
+        </div>
+      </div>
+
+      <!-- Campaign Progress Bar -->
+      <div class="w-full md:w-80 flex flex-col gap-1.5">
+        <div class="flex justify-between text-xs text-slate-400">
+          <span>Tour Completion Rate</span>
+          <span id="progress-percent" class="font-bold text-indigo-400">0%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
+          <div id="bar-visited" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+          <div id="bar-scheduled" class="bg-amber-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="text-[11px] text-slate-500 flex items-center gap-1">
+          <i data-lucide="info" class="w-3 h-3"></i>
+          <span>Click any marker to update status & launch navigation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+    
+    <!-- LEFT PANEL: Filter & Corridor Route Planner -->
+    <div class="w-full lg:w-[420px] bg-slate-950/80 border-r border-slate-800 flex flex-col h-[50vh] lg:h-[calc(100vh-125px)] overflow-hidden">
+      
+      <!-- Filter controls -->
+      <div class="p-3 border-b border-slate-800/80 space-y-2.5 bg-slate-950">
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input id="search-input" type="text" placeholder="Search college, area, or corridor..." 
+            class="w-full bg-slate-900 border border-slate-800 pl-9 pr-3 py-1.5 text-xs text-slate-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Corridor / Belt</label>
+            <select id="cluster-filter" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 py-1.5 px-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <option value="ALL">All Corridors (40)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Status</label>
+            <select id="status-filter" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 py-1.5 px-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <option value="ALL">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Visited">Visited</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Optimized Corridor Trip Launcher -->
+        <div id="corridor-banner" class="bg-indigo-950/40 border border-indigo-900/50 p-2.5 rounded-lg flex items-center justify-between">
+          <div class="min-w-0 pr-2">
+            <div class="text-[11px] font-bold text-indigo-200 truncate" id="active-corridor-title">Select a corridor to plan route</div>
+            <div class="text-[10px] text-indigo-400/80" id="active-corridor-count">Showing all campuses</div>
+          </div>
+          <button id="open-gmaps-corridor-btn" disabled class="disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1.5 rounded-md font-medium shrink-0 transition shadow">
+            <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
+            <span>Tour Map</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- College List -->
+      <div id="colleges-list" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Interactive Map & Details -->
+    <div class="flex-1 flex flex-col relative h-[50vh] lg:h-[calc(100vh-125px)]">
+      
+      <!-- Leaflet map -->
+      <div id="map"></div>
+
+      <!-- Map Floating Corridor Legend -->
+      <div class="absolute bottom-4 right-4 z-20 bg-slate-950/90 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-xl max-w-xs text-xs hidden md:block">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-bold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+            Corridors & Zones
+          </span>
+          <span class="text-[10px] text-slate-400 font-mono" id="legend-count">9 belts</span>
+        </div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]" id="legend-items">
+          <!-- Dynamic legend -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="add-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-150">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+        <h3 class="font-bold text-white text-sm flex items-center gap-2">
+          <i data-lucide="school" class="w-4 h-4 text-indigo-400"></i>
+          Add New College / Campus
+        </h3>
+        <button id="close-modal-btn" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="new-college-form" class="p-5 space-y-3.5 text-xs">
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">College / University Name *</label>
+          <input required id="new-name" type="text" placeholder="e.g. Government College of Technology" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Corridor / Zone *</label>
+            <select id="new-corridor" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Campus Area / District</label>
+            <input id="new-area" type="text" placeholder="e.g. Coimbatore / Kanchipuram" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Latitude *</label>
+            <input required id="new-lat" type="number" step="any" placeholder="13.0827" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Longitude *</label>
+            <input required id="new-lng" type="number" step="any" placeholder="80.2707" 
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">POC / Contact Details</label>
+          <input id="new-poc" type="text" placeholder="e.g. HOD CSE / Hackathon Lead / +91-..." 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">Outreach Notes</label>
+          <textarea id="new-notes" rows="2" placeholder="e.g. Needs sponsor deck handed over in person..." 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="cancel-modal-btn" class="px-3.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> Save College
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Standardized Corridor Definitions & Colors
+    const CORRIDORS = {
+      "NH48": {
+        id: "NH48",
+        name: "Bangalore Highway (NH 48 Belt)",
+        short: "NH 48 Belt",
+        color: "#3b82f6", // Blue
+        hex: "#3b82f6",
+        desc: "Poonamallee – Thandalam – Sriperumbudur corridor (Near SIMATS)"
+      },
+      "OMR": {
+        id: "OMR",
+        name: "OMR / Rajiv Gandhi IT Expressway",
+        short: "OMR Tech Belt",
+        color: "#10b981", // Emerald
+        hex: "#10b981",
+        desc: "Karapakkam – Semmancheri – Kelambakkam corridor"
+      },
+      "VK_ROAD": {
+        id: "VK_ROAD",
+        name: "Vandalur – Kelambakkam Road (SH 121)",
+        short: "Vandalur-Kelambakkam",
+        color: "#8b5cf6", // Purple
+        hex: "#8b5cf6",
+        desc: "Connecting GST Road and OMR Tech belt"
+      },
+      "GST": {
+        id: "GST",
+        name: "GST Road (Chromepet – Vandalur)",
+        short: "GST Road (NH 32)",
+        color: "#f59e0b", // Amber
+        hex: "#f59e0b",
+        desc: "Grand Southern Trunk Road corridor"
+      },
+      "WEST_TAMBARAM": {
+        id: "WEST_TAMBARAM",
+        name: "West Tambaram & Sriperumbudur SH",
+        short: "West Tambaram",
+        color: "#ec4899", // Pink
+        hex: "#ec4899",
+        desc: "Sai Leo Nagar, Mudichur & Somangalam link"
+      },
+      "SOUTH_INNER": {
+        id: "SOUTH_INNER",
+        name: "South Chennai Arterial (Pallikaranai/Ponmar)",
+        short: "South Arterial",
+        color: "#06b6d4", // Cyan
+        hex: "#06b6d4",
+        desc: "Medavakkam, Ponmar & Velachery-Tambaram links"
+      },
+      "CITY_CORE": {
+        id: "CITY_CORE",
+        name: "Chennai City Core (Guindy/Vadapalani)",
+        short: "City Core",
+        color: "#ef4444", // Red
+        hex: "#ef4444",
+        desc: "Sardar Patel Rd, Arcot Rd & Mount-Poonamallee"
+      },
+      "NORTH_NW": {
+        id: "NORTH_NW",
+        name: "North & Northwest (Red Hills/Surapet)",
+        short: "North Chennai",
+        color: "#84cc16", // Lime
+        hex: "#84cc16",
+        desc: "Ambattur, Red Hills & GNT Road corridor"
+      },
+      "THIRUVALLUR": {
+        id: "THIRUVALLUR",
+        name: "Outer Thiruvallur Region",
+        short: "Thiruvallur Belt",
+        color: "#f97316", // Orange
+        hex: "#f97316",
+        desc: "Vengal & outer northern district"
+      }
+    };
+
+    // Pre-mapped list of all 40 engineering colleges with geographic locations & corridors
+    const DEFAULT_COLLEGES = [
+      // Cluster 1: Bangalore Highway / NH 48 (10 colleges)
+      { id: 1, name: "Rajalakshmi Institute of Technology", corridor: "NH48", area: "Kuthambakkam, Poonamallee", lat: 13.0487, lng: 80.0384, status: "Pending", poc: "CSE HOD / Student Council", notes: "Near Bangalore Highway; close to Saveetha & REC." },
+      { id: 3, name: "Rajalakshmi Engineering College", corridor: "NH48", area: "Thandalam, NH 48", lat: 13.0089, lng: 80.0034, status: "Pending", poc: "Cyber Club / Placement Cell", notes: "Major campus along Thandalam stretch." },
+      { id: 6, name: "Saveetha Engineering College", corridor: "NH48", area: "Thandalam, Sriperumbudur", lat: 13.0232, lng: 80.0163, status: "Pending", poc: "SIMATS Sister Campus / Tech Lead", notes: "Close coordination with SIMATS base." },
+      { id: 11, name: "Panimalar Engineering College", corridor: "NH48", area: "Varadharajapuram, Poonamallee", lat: 13.0531, lng: 80.0759, status: "Pending", poc: "Student Affairs Coordinator", notes: "Key campus right by Poonamallee bypass." },
+      { id: 17, name: "Loyola Institute of Technology", corridor: "NH48", area: "Palanchur, NH 48", lat: 13.0368, lng: 80.0528, status: "Pending", poc: "HOD IT / CSE", notes: "Situated directly on NH 48." },
+      { id: 19, name: "Sree Sastha Institute of Engg & Tech", corridor: "NH48", area: "Chembarambakkam, NH 48", lat: 13.0416, lng: 80.0579, status: "Pending", poc: "Cybersecurity Symposium Lead", notes: "Opposite Chembarambakkam lake stretch." },
+      { id: 20, name: "DMI College of Engineering", corridor: "NH48", area: "Palanchur, NH 48", lat: 13.0354, lng: 80.0512, status: "Pending", poc: "Dept of Computer Applications", notes: "Next to Loyola Institute of Tech." },
+      { id: 34, name: "Panimalar Institute of Technology", corridor: "NH48", area: "Poonamallee Bypass", lat: 13.0518, lng: 80.0772, status: "Pending", poc: "Tech Fest Staff Incharge", notes: "Co-located with Panimalar Engg College." },
+      { id: 35, name: "P.B. College of Engineering", corridor: "NH48", area: "Irungattukottai, Sriperumbudur", lat: 12.9856, lng: 79.9744, status: "Pending", poc: "Principal Office / Dean", notes: "Further west towards Irungattukottai industrial corridor." },
+      { id: 40, name: "Alpha College of Engineering", corridor: "NH48", area: "Thirumazhisai, Poonamallee", lat: 13.0612, lng: 80.0631, status: "Pending", poc: "Placement & Outbound Officer", notes: "Near Thirumazhisai satellite town." },
+
+      // Cluster 2: OMR / IT Corridor (6 colleges)
+      { id: 2, name: "Sathyabama Institute of Science & Tech", corridor: "OMR", area: "Jeppiaar Nagar, Semmancheri", lat: 12.8718, lng: 80.2205, status: "Pending", poc: "School of Computing / Dean", notes: "Massive student body on main OMR." },
+      { id: 14, name: "St. Joseph's Institute of Technology", corridor: "OMR", area: "Jeppiaar Nagar, Semmancheri", lat: 12.8682, lng: 80.2183, status: "Pending", poc: "Coding Club Faculty In-charge", notes: "Adjacent to Sathyabama on OMR." },
+      { id: 15, name: "Jeppiaar Engineering College", corridor: "OMR", area: "Semmancheri, OMR", lat: 12.8665, lng: 80.2178, status: "Pending", poc: "Student Council Secretary", notes: "Semmancheri cluster alongside St. Joseph's." },
+      { id: 16, name: "Agni College of Technology", corridor: "OMR", area: "Thalambur, Navalur", lat: 12.8465, lng: 80.2014, status: "Pending", poc: "Innovation Cell Lead", notes: "Just off Navalur OMR junction." },
+      { id: 29, name: "KCG College of Technology", corridor: "OMR", area: "Karapakkam, OMR", lat: 12.9234, lng: 80.2312, status: "Pending", poc: "HOD Cyber / IoT", notes: "Near Sholinganallur Karapakkam belt." },
+      { id: 38, name: "Anand Institute of Higher Technology", corridor: "OMR", area: "Kazhipattur, OMR", lat: 12.8258, lng: 80.2285, status: "Pending", poc: "Academic Coordinator", notes: "Situated south towards Siruseri SIPCOT." },
+
+      // Cluster 3: Vandalur - Kelambakkam Road (3 colleges)
+      { id: 22, name: "Shiv Nadar University", corridor: "VK_ROAD", area: "Kalavakkam, OMR-VK Rd", lat: 12.7871, lng: 80.2064, status: "Pending", poc: "Student Affairs / Tech Club", notes: "High caliber tech students; OMR-Kelambakkam link." },
+      { id: 23, name: "VIT Chennai", corridor: "VK_ROAD", area: "Melakottaiyur, Vandalur-Kelambakkam Rd", lat: 12.8406, lng: 80.1534, status: "Pending", poc: "Cybersecurity Club President", notes: "Prime target with strong CTF and security teams." },
+      { id: 26, name: "Dhaanish Ahmed College of Engg", corridor: "VK_ROAD", area: "Padappai, Vandalur-Wallajabad", lat: 12.8833, lng: 80.0192, status: "Pending", poc: "HOD Information Technology", notes: "Near Padappai connection route." },
+
+      // Cluster 4: GST Road Corridor (4 colleges)
+      { id: 4, name: "Madras Institute of Technology (MIT)", corridor: "GST", area: "Chromepet, GST Road", lat: 12.9482, lng: 80.1402, status: "Pending", poc: "AU Campus Cyber Cell / Professor", notes: "Top-tier Anna University constituent campus." },
+      { id: 32, name: "B.S. Abdur Rahman Crescent Institute", corridor: "GST", area: "Vandalur, GST Road", lat: 12.8794, lng: 80.0847, status: "Pending", poc: "Dean SCIMS / Placement Cell", notes: "Situated right opposite Vandalur Zoo." },
+      { id: 36, name: "PERI Institute of Technology", corridor: "GST", area: "Mannivakkam, West Tambaram", lat: 12.9022, lng: 80.0583, status: "Pending", poc: "Tech Fest Lead", notes: "Between Tambaram and Padappai." },
+      { id: 39, name: "GKM College of Engineering & Tech", corridor: "GST", area: "Perungalathur, Tambaram", lat: 12.9056, lng: 80.1062, status: "Pending", poc: "Student Council Member", notes: "Just off Perungalathur GST junction." },
+
+      // Cluster 5: West Tambaram / Sriperumbudur SH (2 colleges)
+      { id: 7, name: "Sri Sairam Engineering College", corridor: "WEST_TAMBARAM", area: "Sai Leo Nagar, West Tambaram", lat: 12.9602, lng: 80.0573, status: "Pending", poc: "Dept of AI & Cybersecurity", notes: "Anchor campus for West Tambaram visits." },
+      { id: 10, name: "Sri Sairam Institute of Technology", corridor: "WEST_TAMBARAM", area: "Sai Leo Nagar, West Tambaram", lat: 12.9592, lng: 80.0558, status: "Pending", poc: "HOD CSE / Cyber Club Lead", notes: "Located right inside Sairam campus grounds." },
+
+      // Cluster 6: South Chennai Inner Arterial (3 colleges)
+      { id: 9, name: "Prince Dr K Vasudevan College of Engg", corridor: "SOUTH_INNER", area: "Ponmar, Medavakkam", lat: 12.8732, lng: 80.1652, status: "Pending", poc: "Outreach Contact", notes: "Near Mambakkam-Medavakkam route." },
+      { id: 24, name: "Prince Shri Venkateshwara Padmavathy Engg", corridor: "SOUTH_INNER", area: "Ponmar, Medavakkam", lat: 12.8741, lng: 80.1639, status: "Pending", poc: "Head of Placement", notes: "Paired visit with Dr. K Vasudevan College." },
+      { id: 30, name: "Jerusalem College of Engineering", corridor: "SOUTH_INNER", area: "Narayanapuram, Pallikaranai", lat: 12.9463, lng: 80.2039, status: "Pending", poc: "Cybersecurity Dept Representative", notes: "Along Pallikaranai Velachery-Tambaram main road." },
+
+      // Cluster 7: Chennai City Core (8 colleges)
+      { id: 5, name: "Anna University (CEG Guindy)", corridor: "CITY_CORE", area: "Sardar Patel Rd, Guindy", lat: 13.0108, lng: 80.2354, status: "Pending", poc: "ISTE / ACM Student Chapter Lead", notes: "Flagship technical institution of Tamil Nadu." },
+      { id: 8, name: "Easwari Engineering College", corridor: "CITY_CORE", area: "Bharathi Salai, Ramapuram", lat: 13.0336, lng: 80.1804, status: "Pending", poc: "Cyber Club / CSE HOD", notes: "Easwari Ramapuram SRM complex." },
+      { id: 12, name: "Meenakshi Sundararajan Engg College", corridor: "CITY_CORE", area: "Kodambakkam", lat: 13.0536, lng: 80.2238, status: "Pending", poc: "Dean Academics", notes: "Central Kodambakkam location." },
+      { id: 18, name: "Meenakshi College of Engineering", corridor: "CITY_CORE", area: "Vembuliamman Koil St, West KK Nagar", lat: 13.0401, lng: 80.1916, status: "Pending", poc: "HOD IT", notes: "KK Nagar / Virugambakkam connector." },
+      { id: 21, name: "IIT Madras", corridor: "CITY_CORE", area: "Sardar Patel Road, Adyar", lat: 12.9915, lng: 80.2337, status: "Pending", poc: "Webops & Tech Club / CFI", notes: "India's premier institute; coordinate gate entry in advance." },
+      { id: 27, name: "SRM IST Ramapuram Campus", corridor: "CITY_CORE", area: "Ramapuram, Chennai", lat: 13.0331, lng: 80.1809, status: "Pending", poc: "Director of Student Affairs", notes: "Same entrance road as Easwari Engg." },
+      { id: 28, name: "SRM University Vadapalani Campus", corridor: "CITY_CORE", area: "Jawaharlal Nehru Salai, Vadapalani", lat: 13.0521, lng: 80.2098, status: "Pending", poc: "Campus Outreach Lead", notes: "Direct access via Vadapalani Metro / 100ft Road." },
+      { id: 31, name: "Dr. M.G.R. Educational & Research Inst.", corridor: "CITY_CORE", area: "Maduravoyal, NH 48", lat: 13.0583, lng: 80.1612, status: "Pending", poc: "Tech Forum Faculty Head", notes: "Maduravoyal bypass junction." },
+
+      // Cluster 8: North & Northwest (3 colleges)
+      { id: 13, name: "Velammal Engineering College", corridor: "NORTH_NW", area: "Surapet, Ambattur-Red Hills Rd", lat: 13.1492, lng: 80.1687, status: "Pending", poc: "CSE Dept Faculty Coordinator", notes: "Surapet junction off Chennai bypass." },
+      { id: 33, name: "Gojan School of Business & Tech", corridor: "NORTH_NW", area: "Red Hills, GNT Road", lat: 13.2081, lng: 80.1742, status: "Pending", poc: "Principal Office", notes: "North along Grand Northern Trunk (GNT) Road." },
+      { id: 37, name: "Sri Krishna Institute of Technology", corridor: "NORTH_NW", area: "Panapakkam, Red Hills", lat: 13.1894, lng: 80.1581, status: "Pending", poc: "Dean Admissions", notes: "Near Puzhal / Red Hills periphery." },
+
+      // Cluster 9: Outer Thiruvallur Region (1 college)
+      { id: 25, name: "Amrita Vishwa Vidyapeetham", corridor: "THIRUVALLUR", area: "Vengal, Thiruvallur", lat: 13.2554, lng: 80.0278, status: "Pending", poc: "Cybersecurity Club Mentor", notes: "Dedicated campus in Vengal; plan a dedicated half-day." }
+    ];
+
+    let colleges = [];
+    let map = null;
+    let markersMap = new Map();
+    let currentSelectedId = null;
+
+    // Local Storage synchronization
+    function loadCollegesData() {
+      try {
+        const stored = localStorage.getItem('crimeathon_outreach_colleges');
+        if (stored) {
+          colleges = JSON.parse(stored);
+        } else {
+          colleges = [...DEFAULT_COLLEGES];
+          saveCollegesData();
+        }
+      } catch (e) {
+        colleges = [...DEFAULT_COLLEGES];
+      }
+    }
+
+    function saveCollegesData() {
+      try {
+        localStorage.setItem('crimeathon_outreach_colleges', JSON.stringify(colleges));
+      } catch (e) {
+        console.error("Storage write error", e);
+      }
+      updateStats();
+    }
+
+    function initMap() {
+      // Centered at Chennai Metro area
+      map = L.map('map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([13.015, 80.12], 11);
+
+      // Clean dark-mode friendly CartoDB Positron / Dark Matter tiles
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+      }).addTo(map);
+
+      // Attribution
+      L.control.attribution({ position: 'bottomleft' })
+        .addAttribution('&copy; <a href="https://carto.com/">CARTO</a> | CRIMEATHON\'26')
+        .addTo(map);
+
+      renderMarkers();
+    }
+
+    function createMarkerIcon(corridorKey, status, orderNum) {
+      const config = CORRIDORS[corridorKey] || { color: '#6366f1' };
+      const statusBadge = status === 'Visited' ? '✓' : (status === 'Scheduled' ? '⏱' : orderNum);
+      const ringColor = status === 'Visited' ? '#10b981' : (status === 'Scheduled' ? '#f59e0b' : '#ffffff');
+
+      return L.divIcon({
+        className: 'custom-div-icon',
+        html: `
+          <div class="marker-pin" style="background-color: ${config.color}; border-color: ${ringColor}">
+            <span class="marker-pin-inner">${statusBadge}</span>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+    }
+
+    function renderMarkers() {
+      // Clear existing markers
+      markersMap.forEach(m => map.removeLayer(m));
+      markersMap.clear();
+
+      const activeFiltered = getFilteredColleges();
+
+      activeFiltered.forEach((college, index) => {
+        const marker = L.marker([college.lat, college.lng], {
+          icon: createMarkerIcon(college.corridor, college.status, index + 1),
+          title: college.name
+        }).addTo(map);
+
+        marker.bindPopup(buildPopupHtml(college));
+        marker.on('click', () => {
+          highlightCollegeInList(college.id);
+        });
+
+        markersMap.set(college.id, marker);
+      });
+    }
+
+    function buildPopupHtml(college) {
+      const corridorInfo = CORRIDORS[college.corridor] || { name: college.corridor, color: '#6366f1' };
+      const gmapsLink = `https://www.google.com/maps/dir/?api=1&destination=${college.lat},${college.lng}`;
+
+      return `
+        <div class="p-3.5 bg-slate-900 text-slate-100 max-w-[280px]">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background-color: ${corridorInfo.color}">
+              ${corridorInfo.short || corridorInfo.name}
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold">
+              ${college.status}
+            </span>
+          </div>
+          <h4 class="font-bold text-sm text-white leading-tight mb-1">${college.name}</h4>
+          <p class="text-[11px] text-slate-400 mb-2 flex items-center gap-1">
+            <svg class="w-3 h-3 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+            <span class="truncate">${college.area || 'Chennai Area'}</span>
+          </p>
+
+          ${college.poc ? `
+            <div class="text-[11px] bg-slate-950 p-2 rounded border border-slate-800 mb-2 text-slate-300">
+              <strong class="text-indigo-300">POC:</strong> ${college.poc}
+            </div>
+          ` : ''}
+
+          <!-- Quick status switcher -->
+          <div class="flex gap-1 mb-2 pt-1 border-t border-slate-800">
+            <button onclick="updateStatus(${college.id}, 'Pending')" class="flex-1 py-1 rounded text-[10px] font-semibold ${college.status === 'Pending' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Pending</button>
+            <button onclick="updateStatus(${college.id}, 'Scheduled')" class="flex-1 py-1 rounded text-[10px] font-semibold ${college.status === 'Scheduled' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Scheduled</button>
+            <button onclick="updateStatus(${college.id}, 'Visited')" class="flex-1 py-1 rounded text-[10px] font-semibold ${college.status === 'Visited' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">Visited</button>
+          </div>
+
+          <a href="${gmapsLink}" target="_blank" rel="noopener" class="w-full flex items-center justify-center gap-1.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            Directions in Google Maps
+          </a>
+        </div>
+      `;
+    }
+
+    window.updateStatus = function(collegeId, newStatus) {
+      const item = colleges.find(c => c.id === collegeId);
+      if (item) {
+        item.status = newStatus;
+        saveCollegesData();
+        renderMarkers();
+        renderCollegeList();
+        
+        // Refresh popup if open
+        const marker = markersMap.get(collegeId);
+        if (marker && marker.isPopupOpen()) {
+          marker.setPopupContent(buildPopupHtml(item));
+        }
+      }
+    };
+
+    function getFilteredColleges() {
+      const search = document.getElementById('search-input').value.toLowerCase().trim();
+      const corridor = document.getElementById('cluster-filter').value;
+      const status = document.getElementById('status-filter').value;
+
+      return colleges.filter(college => {
+        const matchesSearch = 
+          college.name.toLowerCase().includes(search) ||
+          (college.area && college.area.toLowerCase().includes(search)) ||
+          (college.notes && college.notes.toLowerCase().includes(search));
+
+        const matchesCorridor = corridor === 'ALL' || college.corridor === corridor;
+        const matchesStatus = status === 'ALL' || college.status === status;
+
+        return matchesSearch && matchesCorridor && matchesStatus;
+      });
+    }
+
+    function renderCollegeList() {
+      const container = document.getElementById('colleges-list');
+      const filtered = getFilteredColleges();
+
+      // Update corridor trip banner
+      const activeCorridor = document.getElementById('cluster-filter').value;
+      const corridorBannerBtn = document.getElementById('open-gmaps-corridor-btn');
+      const corridorTitle = document.getElementById('active-corridor-title');
+      const corridorCount = document.getElementById('active-corridor-count');
+
+      if (activeCorridor !== 'ALL' && CORRIDORS[activeCorridor]) {
+        const cConfig = CORRIDORS[activeCorridor];
+        corridorTitle.textContent = `${cConfig.short} Tour Route`;
+        corridorCount.textContent = `${filtered.length} target college(s) in this belt`;
+        corridorBannerBtn.disabled = filtered.length === 0;
+      } else {
+        corridorTitle.textContent = "All Tamil Nadu Campuses";
+        corridorCount.textContent = `${filtered.length} colleges listed across Chennai & suburbs`;
+        corridorBannerBtn.disabled = filtered.length === 0;
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-500">
+            <i data-lucide="map-pin-off" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
+            <p class="text-xs">No colleges matching current filters.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = filtered.map((college, idx) => {
+        const corridorInfo = CORRIDORS[college.corridor] || { name: college.corridor, color: '#6366f1' };
+        const statusColors = {
+          Visited: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/40',
+          Scheduled: 'bg-amber-950/60 text-amber-300 border-amber-800/40',
+          Pending: 'bg-slate-900 text-rose-300 border-rose-900/40'
+        };
+
+        const isSelected = currentSelectedId === college.id;
+
+        return `
+          <div id="card-college-${college.id}" onclick="focusOnCollege(${college.id})" 
+            class="p-3 rounded-xl border transition cursor-pointer ${isSelected ? 'bg-slate-900 border-indigo-500 ring-1 ring-indigo-500 shadow-md' : 'bg-slate-900/70 hover:bg-slate-900 border-slate-800 hover:border-slate-700'}">
+            
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background-color: ${corridorInfo.color}">
+                  ${idx + 1}
+                </span>
+                <span class="text-[10px] font-semibold text-slate-300 truncate max-w-[170px]" title="${corridorInfo.name}">
+                  ${corridorInfo.short || corridorInfo.name}
+                </span>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded border ${statusColors[college.status] || ''}">
+                ${college.status}
+              </span>
+            </div>
+
+            <h3 class="font-bold text-xs text-white leading-tight mb-1 hover:text-indigo-300 transition">
+              ${college.name}
+            </h3>
+
+            <div class="text-[11px] text-slate-400 flex items-center gap-1 mb-2">
+              <i data-lucide="map-pin" class="w-3 h-3 text-slate-500 shrink-0"></i>
+              <span class="truncate">${college.area || 'Chennai Area'}</span>
+            </div>
+
+            ${college.notes ? `
+              <div class="text-[10px] text-slate-400 italic bg-slate-950/60 px-2 py-1 rounded border border-slate-800/60 mb-2 truncate">
+                ${college.notes}
+              </div>
+            ` : ''}
+
+            <!-- Action buttons -->
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
+              <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                ${college.lat.toFixed(3)}, ${college.lng.toFixed(3)}
+              </div>
+              <div class="flex gap-1.5" onclick="event.stopPropagation()">
+                <button onclick="quickToggleStatus(${college.id})" title="Cycle Status" 
+                  class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-indigo-200 text-[10px] font-medium border border-slate-700">
+                  Toggle Status
+                </button>
+                <a href="https://www.google.com/maps/dir/?api=1&destination=${college.lat},${college.lng}" 
+                  target="_blank" rel="noopener" title="Navigate"
+                  class="p-1 rounded bg-indigo-950 text-indigo-400 hover:bg-indigo-900 border border-indigo-800/50">
+                  <i data-lucide="navigation-2" class="w-3.5 h-3.5"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    window.focusOnCollege = function(collegeId) {
+      currentSelectedId = collegeId;
+      const college = colleges.find(c => c.id === collegeId);
+      if (!college || !map) return;
+
+      map.flyTo([college.lat, college.lng], 14, {
+        duration: 0.8
+      });
+
+      const marker = markersMap.get(collegeId);
+      if (marker) {
+        marker.openPopup();
+      }
+
+      renderCollegeList();
+    };
+
+    function highlightCollegeInList(collegeId) {
+      currentSelectedId = collegeId;
+      renderCollegeList();
+      const el = document.getElementById(`card-college-${collegeId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    window.quickToggleStatus = function(collegeId) {
+      const college = colleges.find(c => c.id === collegeId);
+      if (!college) return;
+      const flow = { 'Pending': 'Scheduled', 'Scheduled': 'Visited', 'Visited': 'Pending' };
+      updateStatus(collegeId, flow[college.status] || 'Pending');
+    };
+
+    function generateCorridorGmapsUrl() {
+      const filtered = getFilteredColleges();
+      if (filtered.length === 0) return;
+
+      if (filtered.length === 1) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${filtered[0].lat},${filtered[0].lng}`, '_blank');
+        return;
+      }
+
+      // Starting point is SIMATS University (Crimeathon HQ)
+      const origin = "13.0232,80.0163"; // SIMATS Thandalam Campus
+      const destination = `${filtered[filtered.length - 1].lat},${filtered[filtered.length - 1].lng}`;
+      
+      // Google Maps supports intermediate waypoints separated by pipe '|'
+      const waypoints = filtered.slice(0, -1).map(c => `${c.lat},${c.lng}`).join('|');
+
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+      window.open(url, '_blank');
+    }
+
+    function updateStats() {
+      const total = colleges.length;
+      const visited = colleges.filter(c => c.status === 'Visited').length;
+      const scheduled = colleges.filter(c => c.status === 'Scheduled').length;
+      const pending = total - (visited + scheduled);
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-visited').textContent = visited;
+      document.getElementById('stat-scheduled').textContent = scheduled;
+      document.getElementById('stat-pending').textContent = pending;
+
+      const visitedPct = total > 0 ? (visited / total) * 100 : 0;
+      const scheduledPct = total > 0 ? (scheduled / total) * 100 : 0;
+
+      document.getElementById('progress-percent').textContent = `${Math.round(visitedPct)}%`;
+      document.getElementById('bar-visited').style.width = `${visitedPct}%`;
+      document.getElementById('bar-scheduled').style.width = `${scheduledPct}%`;
+    }
+
+    function exportToCsv() {
+      const headers = ["S.No", "College Name", "Corridor / Belt", "Campus Area", "Latitude", "Longitude", "Status", "POC Contact", "Notes"];
+      const rows = colleges.map((c, i) => [
+        i + 1,
+        `"${(c.name || '').replace(/"/g, '""')}"`,
+        `"${(CORRIDORS[c.corridor]?.name || c.corridor || '').replace(/"/g, '""')}"`,
+        `"${(c.area || '').replace(/"/g, '""')}"`,
+        c.lat,
+        c.lng,
+        c.status,
+        `"${(c.poc || '').replace(/"/g, '""')}"`,
+        `"${(c.notes || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `CRIMEATHON_College_Outreach_Schedule_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function populateDropdownsAndLegend() {
+      const filterSelect = document.getElementById('cluster-filter');
+      const newCorridorSelect = document.getElementById('new-corridor');
+      const legendContainer = document.getElementById('legend-items');
+
+      filterSelect.innerHTML = '<option value="ALL">All Corridors (All 40)</option>';
+      newCorridorSelect.innerHTML = '';
+      legendContainer.innerHTML = '';
+
+      Object.values(CORRIDORS).forEach(c => {
+        // Filter options
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.short;
+        filterSelect.appendChild(opt);
+
+        // Modal options
+        const newOpt = document.createElement('option');
+        newOpt.value = c.id;
+        newOpt.textContent = `${c.short} (${c.name})`;
+        newCorridorSelect.appendChild(newOpt);
+
+        // Floating Legend
+        const legItem = document.createElement('div');
+        legItem.className = 'flex items-center gap-1.5 truncate text-slate-300';
+        legItem.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${c.color}"></span>
+          <span class="truncate" title="${c.name}">${c.short}</span>
+        `;
+        legendContainer.appendChild(legItem);
+      });
+
+      document.getElementById('legend-count').textContent = `${Object.keys(CORRIDORS).length} corridors`;
+    }
+
+    function setupEventListeners() {
+      // Filters
+      document.getElementById('search-input').addEventListener('input', () => {
+        renderMarkers();
+        renderCollegeList();
+      });
+
+      document.getElementById('cluster-filter').addEventListener('change', () => {
+        renderMarkers();
+        renderCollegeList();
+        
+        // Auto-fit bounds if corridor selected
+        const corridor = document.getElementById('cluster-filter').value;
+        const filtered = getFilteredColleges();
+        if (corridor !== 'ALL' && filtered.length > 0 && map) {
+          const group = L.featureGroup(filtered.map(c => markersMap.get(c.id)).filter(Boolean));
+          if (group.getLayers().length > 0) {
+            map.fitBounds(group.getBounds().pad(0.2));
+          }
+        }
+      });
+
+      document.getElementById('status-filter').addEventListener('change', () => {
+        renderMarkers();
+        renderCollegeList();
+      });
+
+      // Google Maps corridor route button
+      document.getElementById('open-gmaps-corridor-btn').addEventListener('click', generateCorridorGmapsUrl);
+
+      // Export CSV
+      document.getElementById('export-csv-btn').addEventListener('click', exportToCsv);
+
+      // Reset data
+      document.getElementById('reset-data-btn').addEventListener('click', () => {
+        if (confirm("Reset college list to default 40 Tamil Nadu colleges? Any newly added colleges will be cleared.")) {
+          colleges = [...DEFAULT_COLLEGES];
+          saveCollegesData();
+          renderMarkers();
+          renderCollegeList();
+        }
+      });
+
+      // Modal management
+      const modal = document.getElementById('add-modal');
+      document.getElementById('add-college-btn').addEventListener('click', () => {
+        modal.classList.remove('hidden');
+      });
+
+      const closeModal = () => modal.classList.add('hidden');
+      document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+      document.getElementById('cancel-modal-btn').addEventListener('click', closeModal);
+
+      // Add new college submit
+      document.getElementById('new-college-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newCollege = {
+          id: Date.now(),
+          name: document.getElementById('new-name').value.trim(),
+          corridor: document.getElementById('new-corridor').value,
+          area: document.getElementById('new-area').value.trim() || "Tamil Nadu",
+          lat: parseFloat(document.getElementById('new-lat').value),
+          lng: parseFloat(document.getElementById('new-lng').value),
+          status: "Pending",
+          poc: document.getElementById('new-poc').value.trim(),
+          notes: document.getElementById('new-notes').value.trim()
+        };
+
+        colleges.unshift(newCollege);
+        saveCollegesData();
+        renderMarkers();
+        renderCollegeList();
+        closeModal();
+        e.target.reset();
+
+        // Pan to new addition
+        focusOnCollege(newCollege.id);
+      });
+    }
+
+    window.onload = function() {
+      loadCollegesData();
+      populateDropdownsAndLegend();
+      initMap();
+      renderCollegeList();
+      updateStats();
+      setupEventListeners();
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
