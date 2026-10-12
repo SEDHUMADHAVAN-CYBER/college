@@ -31,13 +31,12 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 
   <style>
     #map {
-      height: 100%;
-      min-height: 480px;
-      width: 100%;
+      position: absolute;
+      inset: 0;
       z-index: 10;
     }
     .custom-scrollbar::-webkit-scrollbar {
@@ -486,6 +485,14 @@
         .addTo(map);
 
       renderMarkers();
+
+      // Tailwind (CDN) applies layout after load, so recalculate the map size whenever its container changes
+      const mapEl = document.getElementById('map');
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => map.invalidateSize()).observe(mapEl);
+      }
+      window.addEventListener('resize', () => map.invalidateSize());
+      setTimeout(() => map.invalidateSize(), 300);
     }
 
     function createMarkerIcon(corridorKey, status, orderNum) {
