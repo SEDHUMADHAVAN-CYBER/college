@@ -38,6 +38,12 @@
       position: absolute;
       inset: 0;
       z-index: 10;
+      min-height: 400px;
+      height: 100%;
+      width: 100%;
+    }
+    .leaflet-tile {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     }
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
@@ -475,13 +481,14 @@
       }).setView([13.015, 80.12], 11);
 
       // Clean dark-mode friendly CartoDB Positron / Dark Matter tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
       // Attribution
       L.control.attribution({ position: 'bottomleft' })
-        .addAttribution('&copy; <a href="https://carto.com/">CARTO</a> | CRIMEATHON\'26')
+        .addAttribution('CRIMEATHON\'26')
         .addTo(map);
 
       renderMarkers();
