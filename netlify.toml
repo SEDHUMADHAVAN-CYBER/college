@@ -1,0 +1,8 @@
+[build]
+  publish = "."
+
+# Keep the old page address working
+[[redirects]]
+  from = "/tamil_nadu_college_outreach_route_planner*"
+  to = "/"
+  status = 301
